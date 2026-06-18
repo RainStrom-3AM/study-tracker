@@ -203,11 +203,7 @@ fun SettingsScreen(
                         .fillMaxWidth()
                         .combinedClickable(
                             onClick = {},
-                            onLongClick = {
-                                if (!subject.isDefault) {
-                                    viewModel.deleteSubject(subject)
-                                }
-                            }
+                            onLongClick = { viewModel.deleteSubject(subject) }
                         ),
                     colors = CardDefaults.cardColors(
                         containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
@@ -231,13 +227,6 @@ fun SettingsScreen(
                             style = MaterialTheme.typography.bodyLarge,
                             modifier = Modifier.weight(1f)
                         )
-                        if (subject.isDefault) {
-                            AssistChip(
-                                onClick = { },
-                                label = { Text("Default", style = MaterialTheme.typography.labelSmall) },
-                                modifier = Modifier.height(28.dp)
-                            )
-                        }
                     }
                 }
             }

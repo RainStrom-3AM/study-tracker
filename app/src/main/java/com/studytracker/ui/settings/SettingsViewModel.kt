@@ -166,7 +166,6 @@ class SettingsViewModel @Inject constructor(
     }
 
     fun deleteSubject(subject: SubjectEntity) {
-        if (subject.isDefault) return
         _uiState.update { it.copy(showDeleteSubjectDialog = true, subjectToDelete = subject) }
     }
 

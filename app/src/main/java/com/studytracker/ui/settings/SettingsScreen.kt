@@ -1,9 +1,11 @@
 package com.studytracker.ui.settings
 
 import android.app.TimePickerDialog
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
@@ -30,7 +32,7 @@ private val colorOptions = listOf(
     "#EC407A", "#8D6E63"
 )
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
 fun SettingsScreen(
     viewModel: SettingsViewModel = hiltViewModel()
@@ -197,7 +199,16 @@ fun SettingsScreen(
                 }
 
                 Card(
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .combinedClickable(
+                            onClick = {},
+                            onLongClick = {
+                                if (!subject.isDefault) {
+                                    viewModel.deleteSubject(subject)
+                                }
+                            }
+                        ),
                     colors = CardDefaults.cardColors(
                         containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
                     )
@@ -226,18 +237,6 @@ fun SettingsScreen(
                                 label = { Text("Default", style = MaterialTheme.typography.labelSmall) },
                                 modifier = Modifier.height(28.dp)
                             )
-                        } else {
-                            IconButton(
-                                onClick = { viewModel.deleteSubject(subject) },
-                                modifier = Modifier.size(36.dp)
-                            ) {
-                                Icon(
-                                    Icons.Default.Delete,
-                                    contentDescription = "Delete",
-                                    tint = MaterialTheme.colorScheme.error,
-                                    modifier = Modifier.size(20.dp)
-                                )
-                            }
                         }
                     }
                 }
@@ -369,6 +368,28 @@ fun SettingsScreen(
             },
             dismissButton = {
                 TextButton(onClick = { viewModel.hideAddSubjectDialog() }) {
+                    Text("Cancel")
+                }
+            }
+        )
+    }
+
+    // Delete Subject Confirmation Dialog
+    if (uiState.showDeleteSubjectDialog && uiState.subjectToDelete != null) {
+        AlertDialog(
+            onDismissRequest = { viewModel.hideDeleteSubjectDialog() },
+            title = { Text("Delete Subject") },
+            text = { Text("Are you sure you want to delete \"${uiState.subjectToDelete!!.name}\"? This will also delete all its study sessions.") },
+            confirmButton = {
+                TextButton(
+                    onClick = { viewModel.confirmDeleteSubject() },
+                    colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error)
+                ) {
+                    Text("Delete")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { viewModel.hideDeleteSubjectDialog() }) {
                     Text("Cancel")
                 }
             }

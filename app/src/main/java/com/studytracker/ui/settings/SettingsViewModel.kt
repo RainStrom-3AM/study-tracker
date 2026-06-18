@@ -31,6 +31,8 @@ data class SettingsUiState(
     val newSubjectName: String = "",
     val newSubjectColor: String = "#4285F4",
     val showAddSubjectDialog: Boolean = false,
+    val showDeleteSubjectDialog: Boolean = false,
+    val subjectToDelete: SubjectEntity? = null,
     val showTimePicker: Boolean = false,
     val exportMessage: String? = null,
     val snackbarMessage: String? = null
@@ -165,12 +167,25 @@ class SettingsViewModel @Inject constructor(
 
     fun deleteSubject(subject: SubjectEntity) {
         if (subject.isDefault) return
+        _uiState.update { it.copy(showDeleteSubjectDialog = true, subjectToDelete = subject) }
+    }
+
+    fun confirmDeleteSubject() {
+        val subject = _uiState.value.subjectToDelete ?: return
         viewModelScope.launch {
             repository.deleteSubject(subject)
             _uiState.update {
-                it.copy(snackbarMessage = "Subject \"${subject.name}\" deleted")
+                it.copy(
+                    showDeleteSubjectDialog = false,
+                    subjectToDelete = null,
+                    snackbarMessage = "Subject \"${subject.name}\" deleted"
+                )
             }
         }
+    }
+
+    fun hideDeleteSubjectDialog() {
+        _uiState.update { it.copy(showDeleteSubjectDialog = false, subjectToDelete = null) }
     }
 
     fun dismissSnackbar() {

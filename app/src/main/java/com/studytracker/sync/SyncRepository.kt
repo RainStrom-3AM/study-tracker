@@ -4,6 +4,8 @@ import android.annotation.SuppressLint
 import android.content.Context
 import android.os.Build
 import android.provider.Settings
+import com.google.gson.Gson
+import com.google.gson.JsonObject
 import com.studytracker.data.db.SessionEntity
 import com.studytracker.data.db.SettingsEntity
 import com.studytracker.data.db.SubjectEntity
@@ -19,6 +21,8 @@ class SyncRepository @Inject constructor(
     private val repository: StudyRepository,
     @ApplicationContext private val context: Context
 ) {
+    private val gson = Gson()
+    private var cachedBinId: String? = null
 
     @SuppressLint("HardwareIds")
     fun getDeviceId(): String {
@@ -29,24 +33,55 @@ class SyncRepository @Inject constructor(
         return "${Build.MANUFACTURER}_${Build.MODEL}".replace(" ", "_")
     }
 
-    private fun deviceFilter(): Map<String, Any> {
-        return mapOf("deviceId" to getDeviceId())
+    private fun getBinName(): String {
+        return "studytracker_${getDeviceId()}"
+    }
+
+    private suspend fun findOrCreateBin(): String? {
+        cachedBinId?.let { return it }
+
+        try {
+            val listResponse = api.listBins(SyncConfig.MASTER_KEY, SyncConfig.ACCESS_KEY)
+            val existing = listResponse.bins?.find { it.name == getBinName() }
+            if (existing != null) {
+                cachedBinId = existing.id
+                return existing.id
+            }
+
+            val emptyData = JsonObject().apply {
+                addProperty("deviceId", getDeviceId())
+                addProperty("deviceInfo", getDeviceInfo())
+                add("sessions", com.google.gson.JsonArray())
+                add("subjects", com.google.gson.JsonArray())
+                add("settings", JsonObject())
+            }
+
+            val createResponse = api.createBin(
+                masterKey = SyncConfig.MASTER_KEY,
+                accessKey = SyncConfig.ACCESS_KEY,
+                binName = getBinName(),
+                body = emptyData
+            )
+            cachedBinId = createResponse.metadata?.id
+            return cachedBinId
+        } catch (_: Exception) {
+            return null
+        }
     }
 
     suspend fun pushData() {
         try {
-            val deviceId = getDeviceId()
-            val deviceInfo = getDeviceInfo()
+            val binId = findOrCreateBin() ?: return
 
             val sessions = repository.getSessionsBetweenSync(0, System.currentTimeMillis())
             val subjects = repository.getAllSubjectsSync()
             val settings = repository.getSettingsSync()
 
-            val doc = mapOf(
-                "deviceId" to deviceId,
-                "deviceInfo" to deviceInfo,
-                "lastSync" to System.currentTimeMillis(),
-                "sessions" to sessions.map { s ->
+            val data = JsonObject().apply {
+                addProperty("deviceId", getDeviceId())
+                addProperty("deviceInfo", getDeviceInfo())
+                addProperty("lastSync", System.currentTimeMillis())
+                add("sessions", gson.toJsonTree(sessions.map { s ->
                     mapOf(
                         "id" to s.id,
                         "subjectId" to s.subjectId,
@@ -55,8 +90,8 @@ class SyncRepository @Inject constructor(
                         "durationSeconds" to s.durationSeconds,
                         "notes" to s.notes
                     )
-                },
-                "subjects" to subjects.map { s ->
+                }))
+                add("subjects", gson.toJsonTree(subjects.map { s ->
                     mapOf(
                         "id" to s.id,
                         "name" to s.name,
@@ -64,8 +99,8 @@ class SyncRepository @Inject constructor(
                         "isDefault" to s.isDefault,
                         "orderIndex" to s.orderIndex
                     )
-                },
-                "settings" to settings?.let { s ->
+                }))
+                add("settings", gson.toJsonTree(settings?.let { s ->
                     mapOf(
                         "dailyGoalMinutes" to s.dailyGoalMinutes,
                         "reminderEnabled" to s.reminderEnabled,
@@ -73,81 +108,71 @@ class SyncRepository @Inject constructor(
                         "reminderMinute" to s.reminderMinute,
                         "darkModeOption" to s.darkModeOption
                     )
-                }
-            )
+                }))
+            }
 
-            api.updateOne(
-                MongoConfig.API_KEY,
-                MongoUpdate(
-                    filter = deviceFilter(),
-                    update = mapOf("\$set" to doc),
-                    upsert = true
-                )
-            )
+            api.updateBin(SyncConfig.MASTER_KEY, SyncConfig.ACCESS_KEY, binId, data)
         } catch (_: Exception) { }
     }
 
     suspend fun pullData(): Boolean {
         try {
-            val response = api.findOne(
-                MongoConfig.API_KEY,
-                MongoFilter(filter = deviceFilter())
-            )
+            val binId = findOrCreateBin() ?: return false
 
-            if (response == null || response.isEmpty()) return false
+            val response = api.readBin(SyncConfig.MASTER_KEY, SyncConfig.ACCESS_KEY, binId)
+            val record = response.record?.asJsonObject ?: return false
 
-            @Suppress("UNCHECKED_CAST")
-            val sessionsList = response["sessions"] as? List<Map<String, Any>> ?: emptyList()
-            @Suppress("UNCHECKED_CAST")
-            val subjectsList = response["subjects"] as? List<Map<String, Any>> ?: emptyList()
-            @Suppress("UNCHECKED_CAST")
-            val settingsMap = response["settings"] as? Map<String, Any>
+            val sessionsList = record.getAsJsonArray("sessions") ?: return false
+            val subjectsList = record.getAsJsonArray("subjects") ?: return false
+            val settingsObj = record.getAsJsonObject("settings")
 
-            if (subjectsList.isNotEmpty()) {
+            if (subjectsList.size() > 0) {
                 val existingSubjects = repository.getAllSubjectsSync()
                 if (existingSubjects.isEmpty()) {
-                    subjectsList.forEach { s ->
+                    subjectsList.forEach { el ->
+                        val s = el.asJsonObject
                         repository.insertSubject(
                             SubjectEntity(
-                                id = (s["id"] as? Double)?.toLong() ?: 0L,
-                                name = s["name"] as? String ?: "",
-                                colorHex = s["colorHex"] as? String ?: "#9E9E9E",
-                                isDefault = s["isDefault"] as? Boolean ?: false,
-                                orderIndex = (s["orderIndex"] as? Double)?.toInt() ?: 0
+                                id = s.get("id")?.asLong ?: 0L,
+                                name = s.get("name")?.asString ?: "",
+                                colorHex = s.get("colorHex")?.asString ?: "#9E9E9E",
+                                isDefault = s.get("isDefault")?.asBoolean ?: false,
+                                orderIndex = s.get("orderIndex")?.asInt ?: 0
                             )
                         )
                     }
                 }
             }
 
-            if (sessionsList.isNotEmpty()) {
+            if (sessionsList.size() > 0) {
                 val existingSessions = repository.getSessionsBetweenSync(0, System.currentTimeMillis())
                 if (existingSessions.isEmpty()) {
-                    sessionsList.forEach { s ->
+                    sessionsList.forEach { el ->
+                        val s = el.asJsonObject
                         repository.insertSession(
                             SessionEntity(
-                                id = (s["id"] as? Double)?.toLong() ?: 0L,
-                                subjectId = (s["subjectId"] as? Double)?.toLong() ?: 0L,
-                                startTime = (s["startTime"] as? Double)?.toLong() ?: 0L,
-                                endTime = (s["endTime"] as? Double)?.toLong() ?: 0L,
-                                durationSeconds = (s["durationSeconds"] as? Double)?.toInt() ?: 0,
-                                notes = s["notes"] as? String ?: ""
+                                id = s.get("id")?.asLong ?: 0L,
+                                subjectId = s.get("subjectId")?.asLong ?: 0L,
+                                startTime = s.get("startTime")?.asLong ?: 0L,
+                                endTime = s.get("endTime")?.asLong ?: 0L,
+                                durationSeconds = s.get("durationSeconds")?.asInt ?: 0,
+                                notes = s.get("notes")?.asString ?: ""
                             )
                         )
                     }
                 }
             }
 
-            if (settingsMap != null) {
+            if (settingsObj != null && settingsObj.size() > 0) {
                 val existingSettings = repository.getSettingsSync()
                 if (existingSettings == null) {
                     repository.updateSettings(
                         SettingsEntity(
-                            dailyGoalMinutes = (settingsMap["dailyGoalMinutes"] as? Double)?.toInt() ?: 120,
-                            reminderEnabled = settingsMap["reminderEnabled"] as? Boolean ?: false,
-                            reminderHour = (settingsMap["reminderHour"] as? Double)?.toInt() ?: 9,
-                            reminderMinute = (settingsMap["reminderMinute"] as? Double)?.toInt() ?: 0,
-                            darkModeOption = settingsMap["darkModeOption"] as? String ?: "SYSTEM"
+                            dailyGoalMinutes = settingsObj.get("dailyGoalMinutes")?.asInt ?: 120,
+                            reminderEnabled = settingsObj.get("reminderEnabled")?.asBoolean ?: false,
+                            reminderHour = settingsObj.get("reminderHour")?.asInt ?: 9,
+                            reminderMinute = settingsObj.get("reminderMinute")?.asInt ?: 0,
+                            darkModeOption = settingsObj.get("darkModeOption")?.asString ?: "SYSTEM"
                         )
                     )
                 }

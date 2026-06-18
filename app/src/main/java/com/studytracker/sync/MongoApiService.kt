@@ -1,55 +1,57 @@
 package com.studytracker.sync
 
+import com.google.gson.JsonObject
 import retrofit2.http.*
 
 interface MongoApiService {
 
     @Headers("Content-Type: application/json")
-    @POST("action/find")
-    suspend fun find(
-        @Header("api-key") apiKey: String,
-        @Body body: MongoFilter
-    ): MongoFindResponse
+    @POST("b")
+    suspend fun createBin(
+        @Header("X-Master-Key") masterKey: String,
+        @Header("X-Access-Key") accessKey: String,
+        @Header("X-Bin-Name") binName: String,
+        @Header("X-Bin-Private") isPrivate: Boolean = true,
+        @Body body: JsonObject
+    ): JsonBinResponse
 
     @Headers("Content-Type: application/json")
-    @POST("action/findOne")
-    suspend fun findOne(
-        @Header("api-key") apiKey: String,
-        @Body body: MongoFilter
-    ): Map<String, Any>?
+    @GET("b/{binId}/latest")
+    suspend fun readBin(
+        @Header("X-Master-Key") masterKey: String,
+        @Header("X-Access-Key") accessKey: String,
+        @Path("binId") binId: String
+    ): JsonBinResponse
 
     @Headers("Content-Type: application/json")
-    @POST("action/insertOne")
-    suspend fun insertOne(
-        @Header("api-key") apiKey: String,
-        @Body body: MongoDocument
-    ): MongoInsertResponse
+    @PUT("b/{binId}")
+    suspend fun updateBin(
+        @Header("X-Master-Key") masterKey: String,
+        @Header("X-Access-Key") accessKey: String,
+        @Path("binId") binId: String,
+        @Body body: JsonObject
+    ): JsonBinResponse
 
     @Headers("Content-Type: application/json")
-    @POST("action/insertMany")
-    suspend fun insertMany(
-        @Header("api-key") apiKey: String,
-        @Body body: Map<String, Any>
-    ): MongoInsertResponse
-
-    @Headers("Content-Type: application/json")
-    @POST("action/updateOne")
-    suspend fun updateOne(
-        @Header("api-key") apiKey: String,
-        @Body body: MongoUpdate
-    ): MongoUpdateResponse
-
-    @Headers("Content-Type: application/json")
-    @POST("action/updateMany")
-    suspend fun updateMany(
-        @Header("api-key") apiKey: String,
-        @Body body: MongoUpdate
-    ): MongoUpdateResponse
-
-    @Headers("Content-Type: application/json")
-    @POST("action/deleteMany")
-    suspend fun deleteMany(
-        @Header("api-key") apiKey: String,
-        @Body body: MongoDelete
-    ): MongoDeleteResponse
+    @GET("c")
+    suspend fun listBins(
+        @Header("X-Master-Key") masterKey: String,
+        @Header("X-Access-Key") accessKey: String
+    ): JsonBinListResponse
 }
+
+data class JsonBinResponse(
+    val metadata: JsonBinMetadata? = null,
+    val record: com.google.gson.JsonElement? = null
+)
+
+data class JsonBinMetadata(
+    val id: String? = null,
+    val name: String? = null,
+    val createdAt: String? = null,
+    val updatedAt: String? = null
+)
+
+data class JsonBinListResponse(
+    val bins: List<JsonBinMetadata>? = null
+)

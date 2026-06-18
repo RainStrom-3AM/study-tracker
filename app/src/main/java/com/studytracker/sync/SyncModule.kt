@@ -35,7 +35,7 @@ object SyncModule {
     @Singleton
     fun provideRetrofit(client: OkHttpClient): Retrofit {
         return Retrofit.Builder()
-            .baseUrl(MongoConfig.DATA_API_URL)
+            .baseUrl(SyncConfig.BASE_URL)
             .client(client)
             .addConverterFactory(GsonConverterFactory.create())
             .build()

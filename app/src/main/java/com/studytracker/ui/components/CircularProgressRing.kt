@@ -75,9 +75,10 @@ fun CircularProgressRing(
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
             Text(
                 text = timeText,
-                style = MaterialTheme.typography.displayMedium,
+                fontSize = 42.sp,
                 fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.onSurface
+                color = MaterialTheme.colorScheme.onSurface,
+                maxLines = 1
             )
             if (subText.isNotEmpty()) {
                 Text(

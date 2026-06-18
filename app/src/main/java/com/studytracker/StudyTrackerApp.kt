@@ -6,8 +6,13 @@ import android.app.NotificationManager
 import androidx.hilt.work.HiltWorkerFactory
 import androidx.work.Configuration
 import com.studytracker.service.StudyTimerService
+import com.studytracker.sync.SyncRepository
 import com.studytracker.worker.StudyReminderWorker
 import dagger.hilt.android.HiltAndroidApp
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 @HiltAndroidApp
@@ -15,6 +20,11 @@ class StudyTrackerApp : Application(), Configuration.Provider {
 
     @Inject
     lateinit var workerFactory: HiltWorkerFactory
+
+    @Inject
+    lateinit var syncRepository: SyncRepository
+
+    private val appScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
 
     override val workManagerConfiguration: Configuration
         get() = Configuration.Builder()
@@ -24,6 +34,11 @@ class StudyTrackerApp : Application(), Configuration.Provider {
     override fun onCreate() {
         super.onCreate()
         createNotificationChannels()
+        appScope.launch {
+            try {
+                syncRepository.syncOnStart()
+            } catch (_: Exception) { }
+        }
     }
 
     private fun createNotificationChannels() {

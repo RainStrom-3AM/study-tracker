@@ -7,6 +7,7 @@ import android.os.Environment
 import android.provider.MediaStore
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.studytracker.backup.BackupManager
 import com.studytracker.data.db.SettingsEntity
 import com.studytracker.data.db.SubjectEntity
 import com.studytracker.data.repository.StudyRepository
@@ -41,7 +42,8 @@ data class SettingsUiState(
 @HiltViewModel
 class SettingsViewModel @Inject constructor(
     @ApplicationContext private val context: Context,
-    private val repository: StudyRepository
+    private val repository: StudyRepository,
+    private val backupManager: BackupManager
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(SettingsUiState())
@@ -247,5 +249,23 @@ class SettingsViewModel @Inject constructor(
 
     fun dismissExportMessage() {
         _uiState.update { it.copy(exportMessage = null) }
+    }
+
+    fun resetAllProgress() {
+        viewModelScope.launch {
+            backupManager.resetAllData()
+            _uiState.update {
+                it.copy(snackbarMessage = "All progress and backups have been deleted")
+            }
+        }
+    }
+
+    fun createManualBackup() {
+        viewModelScope.launch {
+            val success = backupManager.createBackup()
+            _uiState.update {
+                it.copy(snackbarMessage = if (success) "Backup saved to Downloads/StudyTracker/" else "Backup failed")
+            }
+        }
     }
 }

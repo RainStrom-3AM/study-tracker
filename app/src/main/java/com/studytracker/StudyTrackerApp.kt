@@ -5,8 +5,8 @@ import android.app.NotificationChannel
 import android.app.NotificationManager
 import androidx.hilt.work.HiltWorkerFactory
 import androidx.work.Configuration
+import com.studytracker.backup.BackupManager
 import com.studytracker.service.StudyTimerService
-import com.studytracker.sync.SyncRepository
 import com.studytracker.worker.StudyReminderWorker
 import dagger.hilt.android.HiltAndroidApp
 import kotlinx.coroutines.CoroutineScope
@@ -22,7 +22,7 @@ class StudyTrackerApp : Application(), Configuration.Provider {
     lateinit var workerFactory: HiltWorkerFactory
 
     @Inject
-    lateinit var syncRepository: SyncRepository
+    lateinit var backupManager: BackupManager
 
     private val appScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
 
@@ -36,7 +36,7 @@ class StudyTrackerApp : Application(), Configuration.Provider {
         createNotificationChannels()
         appScope.launch {
             try {
-                syncRepository.syncOnStart()
+                backupManager.restoreFromBackup()
             } catch (_: Exception) { }
         }
     }

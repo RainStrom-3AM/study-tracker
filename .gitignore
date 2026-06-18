@@ -10,4 +10,3 @@
 local.properties
 /app/build
 /.gradle
-app/src/main/java/com/studytracker/sync/MongoConfig.kt

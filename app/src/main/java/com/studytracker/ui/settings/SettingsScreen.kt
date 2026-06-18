@@ -40,6 +40,7 @@ fun SettingsScreen(
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
     val context = LocalContext.current
+    var showResetDialog by remember { mutableStateOf(false) }
 
     LaunchedEffect(uiState.snackbarMessage) {
         uiState.snackbarMessage?.let {
@@ -298,6 +299,41 @@ fun SettingsScreen(
             }
 
             item {
+                OutlinedButton(
+                    onClick = { viewModel.createManualBackup() },
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Icon(Icons.Default.Save, contentDescription = null)
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("Backup Now")
+                }
+            }
+
+            item {
+                Spacer(modifier = Modifier.height(16.dp))
+                Text(
+                    text = "Danger Zone",
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.error
+                )
+            }
+
+            item {
+                Button(
+                    onClick = { showResetDialog = true },
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.error
+                    )
+                ) {
+                    Icon(Icons.Default.DeleteForever, contentDescription = null)
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("Reset All Progress")
+                }
+            }
+
+            item {
                 Spacer(modifier = Modifier.height(24.dp))
             }
         }
@@ -379,6 +415,31 @@ fun SettingsScreen(
             },
             dismissButton = {
                 TextButton(onClick = { viewModel.hideDeleteSubjectDialog() }) {
+                    Text("Cancel")
+                }
+            }
+        )
+    }
+
+    // Reset Progress Confirmation Dialog
+    if (showResetDialog) {
+        AlertDialog(
+            onDismissRequest = { showResetDialog = false },
+            title = { Text("Reset All Progress") },
+            text = { Text("This will permanently delete ALL study sessions, subjects, and backup files. This cannot be undone.") },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        showResetDialog = false
+                        viewModel.resetAllProgress()
+                    },
+                    colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error)
+                ) {
+                    Text("Reset Everything")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showResetDialog = false }) {
                     Text("Cancel")
                 }
             }

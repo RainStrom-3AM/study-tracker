@@ -6,9 +6,9 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.studytracker.data.db.SessionEntity
 import com.studytracker.data.db.SubjectEntity
+import com.studytracker.backup.BackupManager
 import com.studytracker.data.repository.StudyRepository
 import com.studytracker.service.StudyTimerService
-import com.studytracker.sync.SyncRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Job
@@ -41,7 +41,7 @@ data class TimerUiState(
 class TimerViewModel @Inject constructor(
     @ApplicationContext private val context: Context,
     private val repository: StudyRepository,
-    private val syncRepository: SyncRepository
+    private val backupManager: BackupManager
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(TimerUiState())
@@ -171,7 +171,7 @@ class TimerViewModel @Inject constructor(
                     notes = state.notes
                 )
                 repository.insertSession(session)
-                try { syncRepository.pushData() } catch (_: Exception) {}
+                backupManager.createBackup()
 
                 val h = elapsed / 3600
                 val m = (elapsed % 3600) / 60

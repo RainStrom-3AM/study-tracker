@@ -19,10 +19,10 @@ interface SubjectDao {
     @Query("DELETE FROM subjects WHERE id = :id")
     suspend fun deleteById(id: Long)
 
-    @Query("SELECT * FROM subjects ORDER BY isDefault DESC, name ASC")
+    @Query("SELECT * FROM subjects ORDER BY orderIndex ASC")
     fun getAllSubjects(): Flow<List<SubjectEntity>>
 
-    @Query("SELECT * FROM subjects ORDER BY isDefault DESC, name ASC")
+    @Query("SELECT * FROM subjects ORDER BY orderIndex ASC")
     suspend fun getAllSubjectsSync(): List<SubjectEntity>
 
     @Query("SELECT * FROM subjects WHERE id = :id")

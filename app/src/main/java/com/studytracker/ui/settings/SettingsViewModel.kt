@@ -148,8 +148,10 @@ class SettingsViewModel @Inject constructor(
         if (name.isBlank()) return
 
         viewModelScope.launch {
+            val currentSubjects = _uiState.value.subjects
+            val nextIndex = (currentSubjects.maxOfOrNull { it.orderIndex } ?: 0) + 1
             repository.insertSubject(
-                SubjectEntity(name = name, colorHex = color, isDefault = false)
+                SubjectEntity(name = name, colorHex = color, isDefault = false, orderIndex = nextIndex)
             )
             _uiState.update {
                 it.copy(

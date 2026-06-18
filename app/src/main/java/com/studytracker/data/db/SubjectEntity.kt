@@ -8,5 +8,6 @@ data class SubjectEntity(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
     val name: String,
     val colorHex: String,
-    val isDefault: Boolean = false
+    val isDefault: Boolean = false,
+    val orderIndex: Int = 0
 )

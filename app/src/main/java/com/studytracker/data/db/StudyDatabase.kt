@@ -14,7 +14,7 @@ import kotlinx.coroutines.launch
 
 @Database(
     entities = [SessionEntity::class, SubjectEntity::class, SettingsEntity::class],
-    version = 2,
+    version = 3,
     exportSchema = false
 )
 abstract class StudyDatabase : RoomDatabase() {
@@ -39,10 +39,10 @@ abstract class StudyDatabase : RoomDatabase() {
                         Triple("History of Bangladesh", "#EF6C00", 1),
                         Triple("ICT", "#00ACC1", 1)
                     )
-                    defaultSubjects.forEach { (name, color, isDefault) ->
+                    defaultSubjects.forEachIndexed { index, (name, color, isDefault) ->
                         db.execSQL(
-                            "INSERT INTO subjects (name, colorHex, isDefault) VALUES (?, ?, ?)",
-                            arrayOf(name, color, isDefault)
+                            "INSERT INTO subjects (name, colorHex, isDefault, orderIndex) VALUES (?, ?, ?, ?)",
+                            arrayOf(name, color, isDefault, index)
                         )
                     }
                     db.execSQL(
